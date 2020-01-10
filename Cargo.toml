@@ -1,0 +1,17 @@
+[package]
+name = "elliotekj-actix"
+version = "0.1.0"
+authors = ["Elliot Jackson <elliot@elliotekj.com>"]
+edition = "2018"
+
+[dependencies]
+actix-rt = "1.0.0"
+actix-web = "2.0.0"
+env_logger = "0.7.1"
+lazy_static = "1.4.0"
+log = "0.4.8"
+pulldown-cmark = "0.6.1"
+serde = "1.0.104"
+tera = "1.0.1"
+walkdir = "2.2.9"
+yaml-rust = "0.4.3"
