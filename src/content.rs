@@ -70,9 +70,26 @@ fn parse_file_at(path: &Path) -> Result<Page, IoError> {
         }
     };
 
+    let err = |k| {
+        IoError::new(
+            ErrorKind::Other,
+            format!("Missing required {} key in frontmatter.", k),
+        )
+    };
+
+    let page_title = match frontmatter_as_yaml["title"].as_str() {
+        Some(title) => title.to_string(),
+        None => return Err(err("title")),
+    };
+
+    let page_slug = match frontmatter_as_yaml["slug"].as_str() {
+        Some(slug) => slug.to_string(),
+        None => return Err(err("slug")),
+    };
+
     let mut page = Page {
-        title: frontmatter_as_yaml["title"].as_str().unwrap().to_string(),
-        slug: frontmatter_as_yaml["slug"].as_str().unwrap().to_string(),
+        title: page_title,
+        slug: page_slug,
         content: parsed_content,
         rendered: None,
     };
