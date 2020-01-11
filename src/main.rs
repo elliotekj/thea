@@ -9,6 +9,7 @@ extern crate log;
 extern crate mime;
 extern crate pulldown_cmark;
 extern crate serde;
+extern crate shellexpand;
 extern crate tera;
 extern crate walkdir;
 extern crate yaml_rust;
@@ -26,6 +27,7 @@ use std::collections::HashMap;
 use std::io::Result as IoResult;
 use std::{env, process};
 use tera::Tera;
+use std::path::Path;
 
 lazy_static! {
     pub static ref CONFIG: Config = build_config();
@@ -36,12 +38,33 @@ lazy_static! {
 fn build_config() -> Config {
     let mut config = Config::default();
     config.set_default("content.path", "content").unwrap();
+    config.set_default("templates.path", "templates").unwrap();
     config.merge(ConfigFile::with_name("Config")).unwrap();
+
+    let mut base_path_str = config.get_str("base").unwrap();
+
+    if base_path_str.starts_with("~") {
+        base_path_str = shellexpand::tilde(&base_path_str).to_string();
+    }
+
+    let base_path = Path::new(&base_path_str);
+    let path_fields = ["content.path", "templates.path"];
+
+    for c in &path_fields {
+        let path_str = config.get_str(c).unwrap();
+        let path = base_path.join(path_str);
+        let absolute_path_str = path.to_str().unwrap();
+        config.set(c, absolute_path_str).unwrap();
+    }
+
     config
 }
 
 fn build_templates() -> Tera {
-    match Tera::new("templates/**/*") {
+    let templates_path = CONFIG.get_str("templates.path").unwrap();
+    let templates_glob = format!("{}/**/*", templates_path);
+
+    match Tera::new(&templates_glob) {
         Ok(t) => t,
         Err(e) => {
             error!("Template error(s): {}", e);
