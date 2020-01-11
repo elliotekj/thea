@@ -19,7 +19,8 @@ mod markdown;
 mod models;
 
 use crate::models::Page;
-use actix_web::http::header::{ContentType, ETag, EntityTag, IF_NONE_MATCH};
+use actix_web::http::header::{CacheControl, CacheDirective, ContentType};
+use actix_web::http::header::{ETag, EntityTag, IF_NONE_MATCH};
 use actix_web::http::StatusCode;
 use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
@@ -101,6 +102,7 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
     }
 
     res.set(ETag(page_etag));
+    res.set(CacheControl(vec![CacheDirective::MaxAge(900u32)]));
     Ok(res.body(&html))
 }
 
