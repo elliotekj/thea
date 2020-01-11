@@ -1,5 +1,6 @@
 extern crate actix_rt;
 extern crate actix_web;
+extern crate config;
 extern crate env_logger;
 #[macro_use]
 extern crate lazy_static;
@@ -16,12 +17,13 @@ mod markdown;
 use actix_web::http::StatusCode;
 use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
+use config::{Config, File as ConfigFile};
 use serde::Serialize;
 use std::collections::HashMap;
-use std::{env, fs, process};
 use std::error::Error;
 use std::io::{Error as IoError, ErrorKind, Result as IoResult};
 use std::path::Path;
+use std::{env, fs, process};
 use tera::{Context, Tera};
 use walkdir::WalkDir;
 use yaml_rust::{Yaml, YamlLoader};
@@ -35,6 +37,7 @@ struct Page {
 }
 
 lazy_static! {
+    static ref CONFIG: Config = build_config();
     static ref CONTENT: HashMap<String, Page> = build_content_hashmap();
     static ref TEMPLATES: Tera = {
         match Tera::new("templates/**/*") {
@@ -47,9 +50,17 @@ lazy_static! {
     };
 }
 
+fn build_config() -> Config {
+    let mut config = Config::default();
+    config.set_default("content.path", "content").unwrap();
+    config.merge(ConfigFile::with_name("Config")).unwrap();
+    config
+}
+
 fn build_content_hashmap() -> HashMap<String, Page> {
     let mut hashmap = HashMap::new();
-    let walker = WalkDir::new("content");
+    let content_path = CONFIG.get_str("content.path").unwrap();
+    let walker = WalkDir::new(content_path);
 
     for entry in walker {
         let entry = entry.unwrap();
