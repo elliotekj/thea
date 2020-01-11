@@ -19,6 +19,7 @@ mod markdown;
 mod models;
 
 use crate::models::Page;
+use actix_files::Files as ActixFiles;
 use actix_web::http::header::{CacheControl, CacheDirective, ContentType};
 use actix_web::http::header::{ETag, EntityTag, IF_NONE_MATCH};
 use actix_web::http::StatusCode;
@@ -136,6 +137,7 @@ async fn main() -> IoResult<()> {
         App::new()
             .wrap(middleware::Logger::default())
             .wrap(middleware::Compress::default())
+            .service(ActixFiles::new("/static", "./static"))
             .default_service(
                 web::resource("").route(web::get().to(catchall)).route(
                     web::route()
