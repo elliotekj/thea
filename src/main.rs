@@ -135,6 +135,7 @@ async fn main() -> IoResult<()> {
     HttpServer::new(|| {
         App::new()
             .wrap(middleware::Logger::default())
+            .wrap(middleware::Compress::default())
             .default_service(
                 web::resource("").route(web::get().to(catchall)).route(
                     web::route()
