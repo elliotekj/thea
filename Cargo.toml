@@ -1,5 +1,5 @@
 [package]
-name = "elliotekj-actix"
+name = "thea"
 version = "0.1.0"
 authors = ["Elliot Jackson <elliot@elliotekj.com>"]
 edition = "2018"
