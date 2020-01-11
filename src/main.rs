@@ -167,6 +167,9 @@ async fn main() -> IoResult<()> {
     env::set_var("RUST_LOG", "info");
     env_logger::init();
 
+    // Force the evaluation of CONTENT so the first request after startup isn't delayed.
+    let _ = CONTENT.get("/");
+
     HttpServer::new(|| {
         App::new()
             .wrap(middleware::Logger::default())
