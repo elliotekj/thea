@@ -11,10 +11,11 @@ extern crate tera;
 extern crate walkdir;
 extern crate yaml_rust;
 
+mod markdown;
+
 use actix_web::http::StatusCode;
 use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
-use pulldown_cmark::{html as md_html, Options as MdOptions, Parser as MdParser};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::{env, fs, process};
@@ -80,7 +81,7 @@ fn parse_file_at(path: &Path) -> Result<Page, IoError> {
     let extension_str = path.extension().unwrap().to_str().unwrap();
 
     let parsed_content = match extension_str {
-        "md" => parse_md(content),
+        "md" => markdown::from(content),
         _ => {
             return Err(IoError::new(
                 ErrorKind::Other,
@@ -122,16 +123,6 @@ fn parse_frontmatter(frontmatter: &str) -> Result<Yaml, IoError> {
     YamlLoader::load_from_str(frontmatter)
         .map(|mut yaml_vec| yaml_vec.pop().unwrap())
         .map_err(|_| IoError::new(ErrorKind::Other, "Failed to parse frontmatter as YAML."))
-}
-
-fn parse_md(content: &str) -> String {
-    let options = MdOptions::all();
-    let parser = MdParser::new_ext(content, options);
-
-    let mut html_output = String::new();
-    md_html::push_html(&mut html_output, parser);
-
-    html_output
 }
 
 fn render_html(page: &Page) -> Result<String, IoError> {
