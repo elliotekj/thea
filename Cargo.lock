@@ -604,6 +604,7 @@ dependencies = [
  "env_logger",
  "lazy_static",
  "log",
+ "mime",
  "pulldown-cmark",
  "serde 1.0.104",
  "tera",

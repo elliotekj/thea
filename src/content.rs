@@ -33,6 +33,22 @@ pub fn build_hashmap() -> HashMap<String, Page> {
         hashmap.insert(page.slug.clone(), page);
     }
 
+    let static_includes = CONFIG.get_array("content.static_includes").unwrap();
+
+    for entry in static_includes.into_iter() {
+        let path_str = entry.into_str().unwrap();
+        let path = Path::new(&path_str);
+        let page = match parse_static_file(&path) {
+            Ok(page) => page,
+            Err(e) => {
+                error!("For: {} - {:?}", path.display(), e);
+                continue;
+            }
+        };
+
+        hashmap.insert(page.slug.clone(), page);
+    }
+
     hashmap
 }
 
@@ -58,11 +74,11 @@ fn parse_file_at(path: &Path) -> Result<Page, IoError> {
         title: frontmatter_as_yaml["title"].as_str().unwrap().to_string(),
         slug: frontmatter_as_yaml["slug"].as_str().unwrap().to_string(),
         content: parsed_content,
-        rendered_html: None,
+        rendered: None,
     };
 
     let html = render_html(&page)?;
-    page.rendered_html = Some(html);
+    page.rendered = Some(html);
 
     Ok(page)
 }
@@ -105,4 +121,21 @@ fn render_html(page: &Page) -> Result<String, IoError> {
             Err(IoError::new(ErrorKind::Other, e.to_string()))
         }
     }
+}
+
+fn parse_static_file(path: &Path) -> Result<Page, IoError> {
+    let file_contents = fs::read_to_string(path)?;
+    let filename = path.file_name().unwrap().to_str().unwrap().to_string();
+    let mut slug = path.display().to_string();
+
+    if slug.chars().next() != Some('/') {
+        slug = format!("/{}", slug);
+    }
+
+    Ok(Page {
+        title: filename,
+        slug: slug,
+        content: file_contents.clone(),
+        rendered: Some(file_contents),
+    })
 }

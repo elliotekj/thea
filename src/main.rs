@@ -6,6 +6,7 @@ extern crate env_logger;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+extern crate mime;
 extern crate pulldown_cmark;
 extern crate serde;
 extern crate tera;
@@ -17,7 +18,7 @@ mod markdown;
 mod models;
 
 use crate::models::Page;
-use actix_web::http::StatusCode;
+use actix_web::http::{header::ContentType, StatusCode};
 use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use config::{Config, File as ConfigFile};
@@ -55,17 +56,28 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
         None => return not_found_response().await,
     };
 
-    let html = page.rendered_html.clone().unwrap();
+    let html = page.rendered.clone().unwrap();
+    let mut res = HttpResponse::build(StatusCode::OK);
+    let slug_parts = page.slug.split(".").collect::<Vec<&str>>();
 
-    Ok(HttpResponse::build(StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(&html))
+    if (slug_parts.len() > 1) && slug_parts.last().is_some() {
+        match slug_parts.last().unwrap() {
+            &"css" => res.set(ContentType(mime::TEXT_CSS_UTF_8)),
+            &"js" => res.set(ContentType(mime::APPLICATION_JAVASCRIPT_UTF_8)),
+            &"json" => res.set(ContentType::json()),
+            _ => res.set(ContentType::plaintext()),
+        };
+    } else {
+        res.set(ContentType::html());
+    }
+
+    Ok(res.body(&html))
 }
 
 async fn not_found_response() -> AppResult<HttpResponse> {
-    Ok(HttpResponse::build(StatusCode::NOT_FOUND)
-        .content_type("text/html; charset=utf-8")
-        .body("Not found!"))
+    let mut res = HttpResponse::build(StatusCode::NOT_FOUND);
+    res.set(ContentType::html());
+    Ok(res.body("Not found!"))
 }
 
 #[actix_rt::main]
