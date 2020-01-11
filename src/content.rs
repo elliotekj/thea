@@ -33,20 +33,20 @@ pub fn build_hashmap() -> HashMap<String, Page> {
         hashmap.insert(page.slug.clone(), page);
     }
 
-    let static_includes = CONFIG.get_array("content.static_includes").unwrap();
+    if let Ok(static_includes) = CONFIG.get_array("content.static_includes") {
+        for entry in static_includes.into_iter() {
+            let path_str = entry.into_str().unwrap();
+            let path = Path::new(&path_str);
+            let page = match parse_static_file(&path) {
+                Ok(page) => page,
+                Err(e) => {
+                    error!("For: {} - {:?}", path.display(), e);
+                    continue;
+                }
+            };
 
-    for entry in static_includes.into_iter() {
-        let path_str = entry.into_str().unwrap();
-        let path = Path::new(&path_str);
-        let page = match parse_static_file(&path) {
-            Ok(page) => page,
-            Err(e) => {
-                error!("For: {} - {:?}", path.display(), e);
-                continue;
-            }
-        };
-
-        hashmap.insert(page.slug.clone(), page);
+            hashmap.insert(page.slug.clone(), page);
+        }
     }
 
     hashmap
