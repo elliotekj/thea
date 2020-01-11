@@ -16,5 +16,6 @@ pulldown-cmark = "0.6.1"
 serde = "1.0.104"
 shellexpand = "1.1.1"
 tera = "1.0.1"
+uuid = { version = "0.8", features = ["serde", "v4"] }
 walkdir = "2.2.9"
 yaml-rust = "0.4.3"

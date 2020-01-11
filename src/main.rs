@@ -19,15 +19,16 @@ mod markdown;
 mod models;
 
 use crate::models::Page;
-use actix_web::http::{header::ContentType, StatusCode};
+use actix_web::http::header::{ContentType, ETag, EntityTag, IF_NONE_MATCH};
+use actix_web::http::StatusCode;
 use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use config::{Config, File as ConfigFile};
 use std::collections::HashMap;
 use std::io::Result as IoResult;
+use std::path::Path;
 use std::{env, process};
 use tera::Tera;
-use std::path::Path;
 
 lazy_static! {
     pub static ref CONFIG: Config = build_config();
@@ -79,6 +80,11 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
         None => return not_found_response().await,
     };
 
+    let page_etag = EntityTag::strong(page.etag.clone());
+    if resource_was_modified(&req, &page_etag) == false {
+        return Ok(HttpResponse::NotModified().finish());
+    }
+
     let html = page.rendered.clone().unwrap();
     let mut res = HttpResponse::build(StatusCode::OK);
     let slug_parts = page.slug.split(".").collect::<Vec<&str>>();
@@ -94,6 +100,7 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
         res.set(ContentType::html());
     }
 
+    res.set(ETag(page_etag));
     Ok(res.body(&html))
 }
 
@@ -101,6 +108,18 @@ async fn not_found_response() -> AppResult<HttpResponse> {
     let mut res = HttpResponse::build(StatusCode::NOT_FOUND);
     res.set(ContentType::html());
     Ok(res.body("Not found!"))
+}
+
+fn resource_was_modified(req: &HttpRequest, page_etag: &EntityTag) -> bool {
+    match req.headers().get(IF_NONE_MATCH) {
+        Some(header) => {
+            let mut req_etag_str = header.to_str().unwrap();
+            req_etag_str = &req_etag_str[1..req_etag_str.len() - 1];
+            let req_etag = EntityTag::strong(req_etag_str.to_string());
+            page_etag.strong_ne(&req_etag)
+        }
+        None => true,
+    }
 }
 
 #[actix_rt::main]

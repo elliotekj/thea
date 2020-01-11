@@ -6,4 +6,5 @@ pub struct Page {
     pub slug: String,
     pub content: String,
     pub rendered: Option<String>,
+    pub etag: String,
 }

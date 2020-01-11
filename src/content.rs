@@ -7,6 +7,7 @@ use std::fs;
 use std::io::{Error as IoError, ErrorKind};
 use std::path::Path;
 use tera::Context;
+use uuid::Uuid;
 use walkdir::WalkDir;
 use yaml_rust::{Yaml, YamlLoader};
 
@@ -92,6 +93,7 @@ fn parse_file_at(path: &Path) -> Result<Page, IoError> {
         slug: page_slug,
         content: parsed_content,
         rendered: None,
+        etag: Uuid::new_v4().to_string(),
     };
 
     let html = render_html(&page)?;
@@ -154,5 +156,6 @@ fn parse_static_file(path: &Path) -> Result<Page, IoError> {
         slug: slug,
         content: file_contents.clone(),
         rendered: Some(file_contents),
+        etag: Uuid::new_v4().to_string(),
     })
 }
