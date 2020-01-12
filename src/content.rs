@@ -46,7 +46,7 @@ pub fn build_hashmap() -> HashMap<String, Page> {
         }
     }
 
-    hashmap
+    render_pages(hashmap)
 }
 
 fn get_page_types() -> Vec<ConfigPageType> {
@@ -139,14 +139,20 @@ fn parse_file_at(path: &Path, default_template: String, ttype: String) -> Result
         None => return Err(err("slug")),
     };
 
+    let page_date = match frontmatter_as_yaml["date"].as_str() {
+        Some(date) => Some(date.to_string()),
+        None => None,
+    };
+
     let page_meta_layout = match frontmatter_as_yaml["layout"].as_str() {
         Some(layout) => layout.to_string(),
         None => default_template,
     };
 
-    let mut page = Page {
+    Ok(Page {
         page_type: ttype,
         title: page_title,
+        date: page_date,
         slug: page_slug,
         content: parsed_content,
         rendered: None,
@@ -154,12 +160,7 @@ fn parse_file_at(path: &Path, default_template: String, ttype: String) -> Result
             layout: Some(page_meta_layout),
             etag: Uuid::new_v4().to_string(),
         },
-    };
-
-    let html = render_html(&mut page)?;
-    page.rendered = Some(html);
-
-    Ok(page)
+    })
 }
 
 fn find_frontmatter(content: &str) -> Result<(usize, usize, usize), IoError> {
@@ -184,12 +185,41 @@ fn parse_frontmatter(frontmatter: &str) -> Result<Yaml, IoError> {
         .map_err(|_| IoError::new(ErrorKind::Other, "Failed to parse frontmatter as YAML."))
 }
 
-fn render_html(page: &mut Page) -> Result<String, IoError> {
-    let layout = page.meta.layout.take().unwrap();
-    let mut context = Context::new();
-    context.insert("page", page);
+fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
+    let mut final_hashmap: HashMap<String, Page> = HashMap::new();
 
-    match TEMPLATES.render(&layout, &context) {
+    let pages_vec = hashmap
+        .clone()
+        .into_iter()
+        .map(|(_, page)| page)
+        .collect::<Vec<Page>>();
+
+    let mut context = Context::new();
+    context.insert("pages", &pages_vec);
+
+    for (key, page) in hashmap.into_iter() {
+        let layout = page.meta.layout.clone().unwrap();
+        let mut page_context = context.clone();
+        page_context.insert("page", &page);
+
+        let html = match render_html(&layout, page_context) {
+            Ok(html) => html,
+            Err(e) => {
+                error!("Failed to render {}: {:?}.", key, e);
+                continue;
+            }
+        };
+
+        let mut final_page = page.clone();
+        final_page.rendered = Some(html);
+        final_hashmap.insert(key.to_string(), final_page);
+    }
+
+    final_hashmap
+}
+
+fn render_html(layout: &str, context: Context) -> Result<String, IoError> {
+    match TEMPLATES.render(layout, &context) {
         Ok(html) => Ok(html),
         Err(e) => {
             let mut cause = e.source();
