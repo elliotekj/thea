@@ -113,7 +113,7 @@ fn parse_file_at(path: &Path, default_template: String, ttype: String) -> Result
 
     let parsed_content = match extension_str {
         "md" => markdown::from(content),
-        "css" => content.to_string(),
+        "html" | "css" | "js" | "json" | "txt" => content.to_string(),
         _ => {
             return Err(IoError::new(
                 ErrorKind::Other,
