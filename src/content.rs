@@ -1,5 +1,5 @@
 use crate::markdown;
-use crate::models::Page;
+use crate::models::{Page, PageMeta};
 use crate::{CONFIG, TEMPLATES};
 use std::collections::HashMap;
 use std::error::Error;
@@ -88,15 +88,23 @@ fn parse_file_at(path: &Path) -> Result<Page, IoError> {
         None => return Err(err("slug")),
     };
 
+    let page_meta_layout = match frontmatter_as_yaml["layout"].as_str() {
+        Some(layout) => layout.to_string(),
+        None => "blogpost.html".to_string(),
+    };
+
     let mut page = Page {
         title: page_title,
         slug: page_slug,
         content: parsed_content,
         rendered: None,
-        etag: Uuid::new_v4().to_string(),
+        meta: PageMeta {
+            layout: Some(page_meta_layout),
+            etag: Uuid::new_v4().to_string(),
+        },
     };
 
-    let html = render_html(&page)?;
+    let html = render_html(&mut page)?;
     page.rendered = Some(html);
 
     Ok(page)
@@ -124,10 +132,12 @@ fn parse_frontmatter(frontmatter: &str) -> Result<Yaml, IoError> {
         .map_err(|_| IoError::new(ErrorKind::Other, "Failed to parse frontmatter as YAML."))
 }
 
-fn render_html(page: &Page) -> Result<String, IoError> {
-    let context = Context::from_serialize(page).unwrap();
+fn render_html(page: &mut Page) -> Result<String, IoError> {
+    let layout = page.meta.layout.take().unwrap();
+    let mut context = Context::new();
+    context.insert("page", page);
 
-    match TEMPLATES.render("index.html", &context) {
+    match TEMPLATES.render(&layout, &context) {
         Ok(html) => Ok(html),
         Err(e) => {
             let mut cause = e.source();
@@ -156,6 +166,9 @@ fn parse_static_file(path: &Path) -> Result<Page, IoError> {
         slug: slug,
         content: file_contents.clone(),
         rendered: Some(file_contents),
-        etag: Uuid::new_v4().to_string(),
+        meta: PageMeta {
+            layout: None,
+            etag: Uuid::new_v4().to_string(),
+        },
     })
 }

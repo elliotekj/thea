@@ -82,7 +82,7 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
         None => return not_found_response().await,
     };
 
-    let page_etag = EntityTag::strong(page.etag.clone());
+    let page_etag = EntityTag::strong(page.meta.etag.clone());
     if resource_was_modified(&req, &page_etag) == false {
         return Ok(HttpResponse::NotModified().finish());
     }
