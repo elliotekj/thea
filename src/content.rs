@@ -5,7 +5,7 @@ use config::Value as ConfigValue;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
-use std::io::{Error as IoError, ErrorKind};
+use std::io::{Error as IoError, ErrorKind, Write};
 use std::path::Path;
 use tera::Context;
 use uuid::Uuid;
@@ -215,6 +215,12 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
         final_hashmap.insert(key.to_string(), final_page);
     }
 
+    let should_write_to_disk = CONFIG.get_bool("write_to_disk").unwrap();
+
+    if should_write_to_disk {
+        write_rendered_to_disk(&final_hashmap);
+    }
+
     final_hashmap
 }
 
@@ -231,5 +237,37 @@ fn render_html(layout: &str, context: Context) -> Result<String, IoError> {
 
             Err(IoError::new(ErrorKind::Other, e.to_string()))
         }
+    }
+}
+
+fn write_rendered_to_disk(hashmap: &HashMap<String, Page>) {
+    let mut base_path_str = CONFIG.get_str("base_path").unwrap();
+
+    if base_path_str.starts_with("~") {
+        base_path_str = shellexpand::tilde(&base_path_str).to_string();
+    }
+
+    let base_path = Path::new(&base_path_str);
+    let rendered_path = base_path.join(".rendered");
+    let _ = fs::remove_dir_all(&rendered_path);
+    let _ = fs::create_dir(&rendered_path);
+
+    for (key, page) in hashmap {
+        let mut page_path_buf = match key.starts_with("/") {
+            true => rendered_path.join(&key[1..]),
+            false => rendered_path.join(key),
+        };
+
+        if page_path_buf.extension().is_none() {
+            page_path_buf = page_path_buf.join("index.html");
+        }
+
+        let page_path = page_path_buf.as_path();
+        let parent_dirs = page_path.parent().unwrap();
+        let _ = fs::create_dir_all(parent_dirs);
+
+        let mut file = fs::File::create(page_path).unwrap();
+        let file_contents = page.rendered.clone().unwrap();
+        let _ = file.write_all(file_contents.as_bytes());
     }
 }

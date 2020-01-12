@@ -42,9 +42,10 @@ fn build_config() -> Config {
     let mut config = Config::default();
     config.set_default("content.path", "content").unwrap();
     config.set_default("templates.path", "templates").unwrap();
+    config.set_default("write_to_disk", false).unwrap();
     config.merge(ConfigFile::with_name("Config")).unwrap();
 
-    let mut base_path_str = config.get_str("base").unwrap();
+    let mut base_path_str = config.get_str("base_path").unwrap();
 
     if base_path_str.starts_with("~") {
         base_path_str = shellexpand::tilde(&base_path_str).to_string();
