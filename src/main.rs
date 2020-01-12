@@ -60,6 +60,10 @@ fn build_config() -> Config {
         config.set(c, absolute_path_str).unwrap();
     }
 
+    let thea_cache_str = env::var("THEA_CACHE").unwrap_or("true".into());
+    let thea_cache_bool = thea_cache_str.parse::<bool>().unwrap_or(true);
+    config.set("is_cache_on", thea_cache_bool).unwrap();
+
     config
 }
 
@@ -82,6 +86,7 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
         None => return not_found_response().await,
     };
 
+    let is_cache_on = CONFIG.get_bool("is_cache_on").unwrap();
     let page_etag = EntityTag::strong(page.meta.etag.clone());
     if resource_was_modified(&req, &page_etag) == false {
         return Ok(HttpResponse::NotModified().finish());
@@ -102,8 +107,11 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
         res.set(ContentType::html());
     }
 
-    res.set(ETag(page_etag));
-    res.set(CacheControl(vec![CacheDirective::MaxAge(900u32)]));
+    if is_cache_on {
+        res.set(ETag(page_etag));
+        res.set(CacheControl(vec![CacheDirective::MaxAge(900u32)]));
+    }
+
     Ok(res.body(&html))
 }
 
