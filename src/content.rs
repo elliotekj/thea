@@ -1,6 +1,7 @@
 use crate::markdown;
-use crate::models::{Page, PageMeta};
+use crate::models::{ConfigPageType, Page, PageMeta};
 use crate::{CONFIG, TEMPLATES};
+use config::Value as ConfigValue;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
@@ -8,40 +9,35 @@ use std::io::{Error as IoError, ErrorKind};
 use std::path::Path;
 use tera::Context;
 use uuid::Uuid;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 use yaml_rust::{Yaml, YamlLoader};
+
+trait IntoPageType {
+    fn into_page_type(&self) -> Option<ConfigPageType>;
+}
 
 pub fn build_hashmap() -> HashMap<String, Page> {
     let mut hashmap = HashMap::new();
-    let content_path = CONFIG.get_str("content.path").unwrap();
-    let walker = WalkDir::new(content_path);
+    let base_content_path = CONFIG.get_str("content.path").unwrap();
+    let page_types = get_page_types();
 
-    for entry in walker {
-        let entry = entry.unwrap();
+    for pt in &page_types {
+        let walk_path = format!("{}/{}", base_content_path, &pt.path);
+        let walker = WalkDir::new(walk_path).into_iter();
 
-        if entry.file_type().is_dir() {
-            continue;
-        }
-
-        let page = match parse_file_at(entry.path()) {
-            Ok(page) => page,
-            Err(e) => {
-                error!("For: {} - {:?}", entry.path().display(), e);
+        for entry in walker {
+            let entry = entry.unwrap();
+            if is_cachable(&entry) == false {
                 continue;
             }
-        };
 
-        hashmap.insert(page.slug.clone(), page);
-    }
+            let default_template = pt.default_template.clone();
+            let ttype = pt.ttype.clone();
 
-    if let Ok(includes) = CONFIG.get_array("content.includes") {
-        for entry in includes.into_iter() {
-            let path_str = entry.into_str().unwrap();
-            let path = Path::new(&path_str);
-            let page = match parse_static_file(&path) {
+            let page = match parse_file_at(entry.path(), default_template, ttype) {
                 Ok(page) => page,
                 Err(e) => {
-                    error!("For: {} - {:?}", path.display(), e);
+                    error!("For: {} - {:?}", entry.path().display(), e);
                     continue;
                 }
             };
@@ -53,7 +49,61 @@ pub fn build_hashmap() -> HashMap<String, Page> {
     hashmap
 }
 
-fn parse_file_at(path: &Path) -> Result<Page, IoError> {
+fn get_page_types() -> Vec<ConfigPageType> {
+    let config_page_types = CONFIG.get_array("content.page_types").unwrap_or_else(|_| {
+        error!("Failed while collecting content.page_types.");
+        Vec::with_capacity(0)
+    });
+
+    let mut page_types = Vec::with_capacity(config_page_types.len());
+
+    for pt in &config_page_types {
+        match pt.into_page_type() {
+            Some(pt) => page_types.push(pt),
+            None => error!("{:?} has missing parameters; skipping", pt),
+        }
+    }
+
+    page_types
+}
+
+fn is_cachable(entry: &DirEntry) -> bool {
+    let supported_extensions = ["md", "html", "css", "js", "json", "txt"];
+
+    match entry.path().extension() {
+        Some(ext) => supported_extensions.contains(&ext.to_str().unwrap()),
+        None => false,
+    }
+}
+
+impl IntoPageType for ConfigValue {
+    fn into_page_type(&self) -> Option<ConfigPageType> {
+        let table = self.clone().into_table().unwrap();
+
+        let ttype = match table.get("type") {
+            Some(ttype) => ttype.to_string(),
+            None => return None,
+        };
+
+        let path = match table.get("path") {
+            Some(path) => path.to_string(),
+            None => return None,
+        };
+
+        let default_template = match table.get("default_template") {
+            Some(default_template) => default_template.to_string(),
+            None => return None,
+        };
+
+        Some(ConfigPageType {
+            ttype: ttype,
+            path: path,
+            default_template: default_template,
+        })
+    }
+}
+
+fn parse_file_at(path: &Path, default_template: String, ttype: String) -> Result<Page, IoError> {
     let file_contents = fs::read_to_string(path)?;
     let (fm_start, fm_end, content_start) = find_frontmatter(&file_contents)?;
     let frontmatter = &file_contents[fm_start..fm_end];
@@ -63,6 +113,7 @@ fn parse_file_at(path: &Path) -> Result<Page, IoError> {
 
     let parsed_content = match extension_str {
         "md" => markdown::from(content),
+        "css" => content.to_string(),
         _ => {
             return Err(IoError::new(
                 ErrorKind::Other,
@@ -79,8 +130,8 @@ fn parse_file_at(path: &Path) -> Result<Page, IoError> {
     };
 
     let page_title = match frontmatter_as_yaml["title"].as_str() {
-        Some(title) => title.to_string(),
-        None => return Err(err("title")),
+        Some(title) => Some(title.to_string()),
+        None => None,
     };
 
     let page_slug = match frontmatter_as_yaml["slug"].as_str() {
@@ -90,10 +141,11 @@ fn parse_file_at(path: &Path) -> Result<Page, IoError> {
 
     let page_meta_layout = match frontmatter_as_yaml["layout"].as_str() {
         Some(layout) => layout.to_string(),
-        None => "blogpost.html".to_string(),
+        None => default_template,
     };
 
     let mut page = Page {
+        page_type: ttype,
         title: page_title,
         slug: page_slug,
         content: parsed_content,
@@ -150,25 +202,4 @@ fn render_html(page: &mut Page) -> Result<String, IoError> {
             Err(IoError::new(ErrorKind::Other, e.to_string()))
         }
     }
-}
-
-fn parse_static_file(path: &Path) -> Result<Page, IoError> {
-    let file_contents = fs::read_to_string(path)?;
-    let filename = path.file_name().unwrap().to_str().unwrap().to_string();
-    let mut slug = path.display().to_string();
-
-    if slug.chars().next() != Some('/') {
-        slug = format!("/{}", slug);
-    }
-
-    Ok(Page {
-        title: filename,
-        slug: slug,
-        content: file_contents.clone(),
-        rendered: Some(file_contents),
-        meta: PageMeta {
-            layout: None,
-            etag: Uuid::new_v4().to_string(),
-        },
-    })
 }

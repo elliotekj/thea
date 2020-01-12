@@ -2,7 +2,8 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct Page {
-    pub title: String,
+    pub page_type: String,
+    pub title: Option<String>,
     pub slug: String,
     pub content: String,
     pub rendered: Option<String>,
@@ -14,4 +15,10 @@ pub struct Page {
 pub struct PageMeta {
     pub layout: Option<String>,
     pub etag: String,
+}
+
+pub struct ConfigPageType {
+    pub ttype: String,
+    pub path: String,
+    pub default_template: String,
 }
