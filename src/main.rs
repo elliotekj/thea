@@ -2,6 +2,7 @@ extern crate actix_rt;
 extern crate actix_web;
 extern crate config;
 extern crate env_logger;
+extern crate html_minifier;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]

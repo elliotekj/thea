@@ -2,6 +2,7 @@ use crate::markdown;
 use crate::models::{ConfigPageType, Page, PageMeta};
 use crate::{CONFIG, TEMPLATES};
 use config::Value as ConfigValue;
+use html_minifier::HTMLMinifier;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
@@ -243,8 +244,10 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
 }
 
 fn render_html(layout: &str, context: TeraContext) -> Result<String, IoError> {
-    match TEMPLATES.render(layout, &context) {
-        Ok(html) => Ok(html),
+    let mut html_minifier = HTMLMinifier::new();
+
+    let html = match TEMPLATES.render(layout, &context) {
+        Ok(html) => html,
         Err(e) => {
             let mut cause = e.source();
 
@@ -253,9 +256,16 @@ fn render_html(layout: &str, context: TeraContext) -> Result<String, IoError> {
                 cause = e.source();
             }
 
-            Err(IoError::new(ErrorKind::Other, e.to_string()))
+            return Err(IoError::new(ErrorKind::Other, e.to_string()));
         }
-    }
+    };
+
+    match html_minifier.digest(html) {
+        Ok(()) => (),
+        Err(e) => return Err(IoError::new(ErrorKind::Other, e.to_string())),
+    };
+
+    Ok(html_minifier.get_html())
 }
 
 fn write_rendered_to_disk(hashmap: &HashMap<String, Page>) {
