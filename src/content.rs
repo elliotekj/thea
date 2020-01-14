@@ -32,10 +32,10 @@ pub fn build_hashmap() -> HashMap<String, Page> {
                 continue;
             }
 
-            let default_template = pt.default_template.clone();
+            let default_layout = pt.default_layout.clone();
             let ttype = pt.ttype.clone();
 
-            let page = match parse_file_at(entry.path(), default_template, ttype) {
+            let page = match parse_file_at(entry.path(), default_layout, ttype) {
                 Ok(page) => page,
                 Err(e) => {
                     error!("For: {} - {:?}", entry.path().display(), e);
@@ -91,20 +91,20 @@ impl IntoPageType for ConfigValue {
             None => return None,
         };
 
-        let default_template = match table.get("default_template") {
-            Some(default_template) => default_template.to_string(),
+        let default_layout = match table.get("default_layout") {
+            Some(default_layout) => default_layout.to_string(),
             None => return None,
         };
 
         Some(ConfigPageType {
             ttype: ttype,
             path: path,
-            default_template: default_template,
+            default_layout: default_layout,
         })
     }
 }
 
-fn parse_file_at(path: &Path, default_template: String, ttype: String) -> Result<Page, IoError> {
+fn parse_file_at(path: &Path, default_layout: String, ttype: String) -> Result<Page, IoError> {
     let file_contents = fs::read_to_string(path)?;
     let (fm_start, fm_end, content_start) = find_frontmatter(&file_contents)?;
     let frontmatter = &file_contents[fm_start..fm_end];
@@ -137,7 +137,7 @@ fn parse_file_at(path: &Path, default_template: String, ttype: String) -> Result
 
     let page_meta_layout = match frontmatter_as_yaml["layout"].as_str() {
         Some(layout) => layout.to_string(),
-        None => default_template,
+        None => default_layout,
     };
 
     let fm_dump = dump_frontmatter(frontmatter_as_yaml);
@@ -167,7 +167,7 @@ fn find_frontmatter(content: &str) -> Result<(usize, usize, usize), IoError> {
             };
             Ok((4, fm_end + 4, fm_end + 8))
         }
-        false => return Err(err),
+        false => Err(err),
     }
 }
 

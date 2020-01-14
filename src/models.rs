@@ -21,5 +21,5 @@ pub struct PageMeta {
 pub struct ConfigPageType {
     pub ttype: String,
     pub path: String,
-    pub default_template: String,
+    pub default_layout: String,
 }
