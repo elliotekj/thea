@@ -43,6 +43,7 @@ lazy_static! {
 fn build_config() -> Config {
     let mut config = Config::default();
     config.set_default("content.path", "content").unwrap();
+    config.set_default("content.syntax_theme", "InspiredGitHub").unwrap();
     config.set_default("templates.path", "templates").unwrap();
     config.set_default("write_to_disk", false).unwrap();
     config.merge(ConfigFile::with_name("Config")).unwrap();
