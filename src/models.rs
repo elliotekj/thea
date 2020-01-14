@@ -1,12 +1,12 @@
 use serde::Serialize;
+use tera::{Map as TeraMap, Value as TeraValue};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Page {
     pub page_type: String,
-    pub title: Option<String>,
-    pub date: Option<String>,
     pub slug: String,
     pub content: String,
+    pub fm: TeraMap<String, TeraValue>,
     pub rendered: Option<String>,
     #[serde(skip_serializing)]
     pub meta: PageMeta,

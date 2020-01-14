@@ -7,7 +7,7 @@ use std::error::Error;
 use std::fs;
 use std::io::{Error as IoError, ErrorKind, Write};
 use std::path::Path;
-use tera::Context;
+use tera::{Context as TeraContext, Map as TeraMap, Value as TeraValue};
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 use yaml_rust::{Yaml, YamlLoader};
@@ -129,19 +129,9 @@ fn parse_file_at(path: &Path, default_template: String, ttype: String) -> Result
         )
     };
 
-    let page_title = match frontmatter_as_yaml["title"].as_str() {
-        Some(title) => Some(title.to_string()),
-        None => None,
-    };
-
     let page_slug = match frontmatter_as_yaml["slug"].as_str() {
         Some(slug) => slug.to_string(),
         None => return Err(err("slug")),
-    };
-
-    let page_date = match frontmatter_as_yaml["date"].as_str() {
-        Some(date) => Some(date.to_string()),
-        None => None,
     };
 
     let page_meta_layout = match frontmatter_as_yaml["layout"].as_str() {
@@ -149,11 +139,12 @@ fn parse_file_at(path: &Path, default_template: String, ttype: String) -> Result
         None => default_template,
     };
 
+    let fm_dump = dump_frontmatter(frontmatter_as_yaml);
+
     Ok(Page {
         page_type: ttype,
-        title: page_title,
-        date: page_date,
         slug: page_slug,
+        fm: fm_dump,
         content: parsed_content,
         rendered: None,
         meta: PageMeta {
@@ -185,6 +176,33 @@ fn parse_frontmatter(frontmatter: &str) -> Result<Yaml, IoError> {
         .map_err(|_| IoError::new(ErrorKind::Other, "Failed to parse frontmatter as YAML."))
 }
 
+fn dump_frontmatter(frontmatter: Yaml) -> TeraMap<String, TeraValue> {
+    let mut map = TeraMap::new();
+
+    let frontmatter_hashmap = match frontmatter.into_hash() {
+        Some(hm) => hm,
+        None => return map,
+    };
+
+    for (key, value) in &frontmatter_hashmap {
+        let key = key.as_str().unwrap().to_string();
+
+        if let Some(value_as_vec) = value.as_vec() {
+            let stringified = value_as_vec
+                .iter()
+                .map(|v| v.as_str().unwrap().to_string())
+                .collect::<Vec<String>>();
+
+            map.insert(key, TeraValue::from(stringified));
+        } else if let Some(value_as_str) = value.as_str() {
+            let stringified = value_as_str.to_string();
+            map.insert(key, TeraValue::from(stringified));
+        }
+    }
+
+    map
+}
+
 fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
     let mut final_hashmap: HashMap<String, Page> = HashMap::new();
 
@@ -194,7 +212,7 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
         .map(|(_, page)| page)
         .collect::<Vec<Page>>();
 
-    let mut context = Context::new();
+    let mut context = TeraContext::new();
     context.insert("pages", &pages_vec);
 
     for (key, page) in hashmap.into_iter() {
@@ -224,7 +242,7 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
     final_hashmap
 }
 
-fn render_html(layout: &str, context: Context) -> Result<String, IoError> {
+fn render_html(layout: &str, context: TeraContext) -> Result<String, IoError> {
     match TEMPLATES.render(layout, &context) {
         Ok(html) => Ok(html),
         Err(e) => {
