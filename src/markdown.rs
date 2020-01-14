@@ -1,22 +1,20 @@
+use crate::codeblocks;
 use pulldown_cmark::{html as md_html, Options as MdOptions, Parser as MdParser};
-use pulldown_cmark::{CowStr, Event, Tag};
-
-#[derive(Debug, Default)]
-struct CodeBlockOpen {
-    lang: Option<String>,
-    filename: Option<String>,
-    highlights: Option<Vec<usize>>,
-}
+use pulldown_cmark::{Event, Tag};
+use syntect::easy::HighlightLines;
+use syntect::html::{styled_line_to_highlighted_html, IncludeBackground};
 
 pub fn from(content: &str) -> String {
     let options = MdOptions::all();
+    let mut highlighter: Option<HighlightLines> = None;
     let mut html_output = String::new();
 
     {
         let events = MdParser::new_ext(content, options)
             .map(|event| match event {
                 Event::Start(Tag::CodeBlock(info)) => {
-                    let codeblock_open = parse_codeblock_open(info);
+                    let codeblock_open = codeblocks::parse_codeblock_open(info);
+                    highlighter = Some(codeblocks::get_highlighter(&codeblock_open));
                     let mut html = String::from("");
 
                     if let Some(filename) = codeblock_open.filename {
@@ -30,6 +28,22 @@ pub fn from(content: &str) -> String {
 
                     Event::Html(html.into())
                 }
+
+                Event::Text(text) => {
+                    if let Some(ref mut highlighter) = highlighter {
+                        let hltd = highlighter.highlight(&text, &codeblocks::SYNTAX_SET);
+                        let html = styled_line_to_highlighted_html(&hltd, IncludeBackground::No);
+                        return Event::Html(html.into());
+                    }
+
+                    Event::Text(text)
+                }
+
+                Event::End(Tag::CodeBlock(_)) => {
+                    highlighter = None;
+                    Event::Html("</code></pre>".into())
+                }
+
                 _ => event,
             })
             .collect::<Vec<_>>();
@@ -38,36 +52,4 @@ pub fn from(content: &str) -> String {
     }
 
     html_output
-}
-
-fn parse_codeblock_open<'a>(info: CowStr<'a>) -> CodeBlockOpen {
-    let parts = info.split_whitespace().collect::<Vec<&str>>();
-    let mut codeblock_open: CodeBlockOpen = Default::default();
-
-    for p in parts {
-        if p.contains("=") == false {
-            codeblock_open.lang = Some(p.to_string());
-        } else if p.starts_with("filename=") {
-            let filename = &p[9..];
-            codeblock_open.filename = Some(filename.to_string());
-        } else if p.starts_with("highlight=") {
-            let lines = &p[10..];
-            let line_numbers = lines.split(",").collect::<Vec<&str>>();
-            let mut highlight = Vec::with_capacity(line_numbers.len());
-
-            for l in line_numbers {
-                match l.parse::<usize>() {
-                    Ok(line_nr) => highlight.push(line_nr),
-                    Err(e) => error!("Error parsing '{}' - {:?}", l, e),
-                };
-            }
-
-            match highlight.is_empty() {
-                true => codeblock_open.highlights = None,
-                false => codeblock_open.highlights = Some(highlight),
-            }
-        }
-    }
-
-    codeblock_open
 }

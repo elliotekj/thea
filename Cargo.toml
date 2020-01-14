@@ -16,6 +16,7 @@ mime = "0.3.16"
 pulldown-cmark = "0.6.1"
 serde = "1.0.104"
 shellexpand = "1.1.1"
+syntect = "3.3.0"
 tera = "1.0.1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 walkdir = "2.2.9"

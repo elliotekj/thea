@@ -10,10 +10,12 @@ extern crate mime;
 extern crate pulldown_cmark;
 extern crate serde;
 extern crate shellexpand;
+extern crate syntect;
 extern crate tera;
 extern crate walkdir;
 extern crate yaml_rust;
 
+mod codeblocks;
 mod content;
 mod markdown;
 mod models;
