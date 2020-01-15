@@ -215,6 +215,7 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
 
     let mut context = TeraContext::new();
     context.insert("pages", &pages_vec);
+    context.insert("globals", &dump_globals());
 
     for (key, page) in hashmap.into_iter() {
         let layout = page.meta.layout.clone().unwrap();
@@ -241,6 +242,28 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
     }
 
     final_hashmap
+}
+
+fn dump_globals() -> TeraMap<String, TeraValue> {
+    let mut map = TeraMap::new();
+
+    let globals_hashmap = match CONFIG.get_table("templates.globals") {
+        Ok(gh) => gh,
+        Err(_) => return map,
+    };
+
+    for (key, value) in globals_hashmap.into_iter() {
+        if let Ok(value_as_bool) = value.clone().into_bool() {
+            map.insert(key, TeraValue::from(value_as_bool));
+        } else if let Ok(value_as_int) = value.clone().into_int() {
+            map.insert(key, TeraValue::from(value_as_int));
+        } else if let Ok(value_as_str) = value.into_str() {
+            let stringified = value_as_str.to_string();
+            map.insert(key, TeraValue::from(stringified));
+        }
+    }
+
+    map
 }
 
 fn render_html(layout: &str, context: TeraContext) -> Result<String, IoError> {

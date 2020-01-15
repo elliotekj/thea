@@ -9,7 +9,7 @@ lazy_static! {
     static ref THEME_SET: ThemeSet = ThemeSet::load_defaults();
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct CodeBlockOpen {
     pub lang: Option<String>,
     pub filename: Option<String>,
