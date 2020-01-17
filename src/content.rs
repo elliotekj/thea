@@ -69,7 +69,7 @@ fn get_page_types() -> Vec<ConfigPageType> {
 }
 
 fn is_cachable(entry: &DirEntry) -> bool {
-    let supported_extensions = ["md", "html", "css", "js", "json", "txt"];
+    let supported_extensions = ["md", "html", "css", "js", "json", "xml", "txt"];
 
     match entry.path().extension() {
         Some(ext) => supported_extensions.contains(&ext.to_str().unwrap()),
@@ -114,7 +114,7 @@ fn parse_file_at(path: &Path, default_layout: String, ttype: String) -> Result<P
 
     let parsed_content = match extension_str {
         "md" => markdown::from(content),
-        "html" | "css" | "js" | "json" | "txt" => content.to_string(),
+        "html" | "css" | "js" | "json" | "xml" | "txt" => content.to_string(),
         _ => {
             return Err(IoError::new(
                 ErrorKind::Other,

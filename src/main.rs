@@ -106,6 +106,7 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
             &"css" => res.set(ContentType(mime::TEXT_CSS_UTF_8)),
             &"js" => res.set(ContentType(mime::APPLICATION_JAVASCRIPT_UTF_8)),
             &"json" => res.set(ContentType::json()),
+            &"xml" => res.set(ContentType(mime::TEXT_XML)),
             _ => res.set(ContentType::plaintext()),
         };
     } else {
