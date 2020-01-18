@@ -1,7 +1,7 @@
 extern crate actix_rt;
 extern crate actix_web;
 extern crate config;
-extern crate env_logger;
+extern crate flexi_logger;
 extern crate html_minifier;
 #[macro_use]
 extern crate lazy_static;
@@ -21,14 +21,15 @@ mod content;
 mod markdown;
 mod models;
 
-use crate::models::Page;
 use actix_files::Files as ActixFiles;
+use actix_web::Result as AppResult;
+use actix_web::http::StatusCode;
 use actix_web::http::header::{CacheControl, CacheDirective, ContentType};
 use actix_web::http::header::{ETag, EntityTag, IF_NONE_MATCH};
-use actix_web::http::StatusCode;
-use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use config::{Config, File as ConfigFile};
+use crate::models::Page;
+use flexi_logger::{Logger as FlexiLogger, opt_format};
 use std::collections::HashMap;
 use std::io::Result as IoResult;
 use std::path::Path;
@@ -141,8 +142,12 @@ fn resource_was_modified(req: &HttpRequest, page_etag: &EntityTag) -> bool {
 
 #[actix_rt::main]
 async fn main() -> IoResult<()> {
-    env::set_var("RUST_LOG", "info");
-    env_logger::init();
+    FlexiLogger::with_env_or_str("info")
+            .log_to_file()
+            .directory("logs")
+            .format(opt_format)
+            .start()
+            .unwrap();
 
     // Force the evaluation of CONTENT so the first request after startup isn't delayed.
     let _ = CONTENT.get("/");
