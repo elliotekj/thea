@@ -2153,11 +2153,12 @@ dependencies = [
 
 [[package]]
 name = "thea"
-version = "0.1.0"
+version = "1.0.0-beta.001"
 dependencies = [
  "actix-files",
  "actix-rt",
  "actix-web",
+ "clap",
  "config",
  "flexi_logger",
  "html-minifier",

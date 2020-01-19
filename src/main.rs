@@ -1,5 +1,7 @@
 extern crate actix_rt;
 extern crate actix_web;
+#[macro_use]
+extern crate clap;
 extern crate config;
 extern crate flexi_logger;
 extern crate html_minifier;
@@ -21,15 +23,15 @@ mod content;
 mod markdown;
 mod models;
 
+use crate::models::Page;
 use actix_files::Files as ActixFiles;
-use actix_web::Result as AppResult;
-use actix_web::http::StatusCode;
 use actix_web::http::header::{CacheControl, CacheDirective, ContentType};
 use actix_web::http::header::{ETag, EntityTag, IF_NONE_MATCH};
+use actix_web::http::StatusCode;
+use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use config::{Config, File as ConfigFile};
-use crate::models::Page;
-use flexi_logger::{Logger as FlexiLogger, opt_format};
+use flexi_logger::{opt_format, Logger as FlexiLogger};
 use std::collections::HashMap;
 use std::io::Result as IoResult;
 use std::path::Path;
@@ -40,6 +42,21 @@ lazy_static! {
     pub static ref CONFIG: Config = build_config();
     static ref CONTENT: HashMap<String, Page> = content::build_hashmap();
     pub static ref TEMPLATES: Tera = build_templates();
+}
+
+fn setup_logger(is_in_dev_mode: bool) {
+    let logger = FlexiLogger::with_env_or_str("info");
+
+    if is_in_dev_mode {
+        logger.start().unwrap();
+    } else {
+        logger
+            .log_to_file()
+            .directory("logs")
+            .format(opt_format)
+            .start()
+            .unwrap();
+    }
 }
 
 fn build_config() -> Config {
@@ -142,12 +159,14 @@ fn resource_was_modified(req: &HttpRequest, page_etag: &EntityTag) -> bool {
 
 #[actix_rt::main]
 async fn main() -> IoResult<()> {
-    FlexiLogger::with_env_or_str("info")
-            .log_to_file()
-            .directory("logs")
-            .format(opt_format)
-            .start()
-            .unwrap();
+    let matches = clap_app!(thea =>
+        (version: crate_version!())
+        (author: "Elliot Jackson <elliot@elliotekj.com")
+        (about: crate_description!())
+        (@arg dev: -d --dev "Run thea web development mode"))
+    .get_matches();
+
+    setup_logger(matches.is_present("dev"));
 
     // Force the evaluation of CONTENT so the first request after startup isn't delayed.
     let _ = CONTENT.get("/");
