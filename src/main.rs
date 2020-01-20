@@ -26,7 +26,7 @@ mod models;
 use crate::models::Page;
 use actix_files::Files as ActixFiles;
 use actix_web::http::header::{CacheControl, CacheDirective, ContentType};
-use actix_web::http::header::{ETag, EntityTag, IF_NONE_MATCH};
+use actix_web::http::header::{ETag, EntityTag, IF_NONE_MATCH, LOCATION};
 use actix_web::http::StatusCode;
 use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
@@ -140,9 +140,10 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
 }
 
 async fn not_found_response() -> AppResult<HttpResponse> {
-    let mut res = HttpResponse::build(StatusCode::NOT_FOUND);
-    res.set(ContentType::html());
-    Ok(res.body("Not found!"))
+    Ok(HttpResponse::Found()
+        .header(LOCATION, "/404")
+        .finish()
+        .into_body())
 }
 
 fn resource_was_modified(req: &HttpRequest, page_etag: &EntityTag) -> bool {
