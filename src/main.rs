@@ -163,13 +163,17 @@ async fn main() -> IoResult<()> {
         (version: crate_version!())
         (author: "Elliot Jackson <elliot@elliotekj.com")
         (about: crate_description!())
-        (@arg dev: -d --dev "Run thea web development mode"))
+        (@arg dev: -d --dev "Runs thea in web development mode")
+        (@arg PORT: -p --port +takes_value "Sets the port thea starts on"))
     .get_matches();
 
     setup_logger(matches.is_present("dev"));
 
     // Force the evaluation of CONTENT so the first request after startup isn't delayed.
     let _ = CONTENT.get("/");
+
+    let port = matches.value_of("PORT").unwrap_or("8765");
+    let url = format!("127.0.0.1:{}", port);
 
     HttpServer::new(|| {
         App::new()
@@ -184,7 +188,7 @@ async fn main() -> IoResult<()> {
                 ),
             )
     })
-    .bind("127.0.0.1:8765")?
+    .bind(&url)?
     .run()
     .await
 }
