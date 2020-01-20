@@ -42,6 +42,7 @@ lazy_static! {
     pub static ref CONFIG: Config = build_config();
     static ref CONTENT: HashMap<String, Page> = content::build_hashmap();
     pub static ref TEMPLATES: Tera = build_templates();
+    static ref SHOULD_CACHE: bool = should_cache();
 }
 
 fn setup_logger(is_in_dev_mode: bool) {
@@ -83,10 +84,6 @@ fn build_config() -> Config {
         config.set(c, absolute_path_str).unwrap();
     }
 
-    let thea_cache_str = env::var("THEA_CACHE").unwrap_or("true".into());
-    let thea_cache_bool = thea_cache_str.parse::<bool>().unwrap_or(true);
-    config.set("is_cache_on", thea_cache_bool).unwrap();
-
     config
 }
 
@@ -103,13 +100,17 @@ fn build_templates() -> Tera {
     }
 }
 
+fn should_cache() -> bool {
+    let thea_cache_str = env::var("THEA_SHOULD_CACHE").unwrap_or("true".into());
+    thea_cache_str.parse::<bool>().unwrap_or(true)
+}
+
 async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
     let page = match CONTENT.get(req.path()) {
         Some(page) => page,
         None => return not_found_response().await,
     };
 
-    let is_cache_on = CONFIG.get_bool("is_cache_on").unwrap();
     let page_etag = EntityTag::strong(page.meta.etag.clone());
     if resource_was_modified(&req, &page_etag) == false {
         return Ok(HttpResponse::NotModified().finish());
@@ -131,7 +132,7 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
         res.set(ContentType::html());
     }
 
-    if is_cache_on {
+    if *SHOULD_CACHE {
         res.set(ETag(page_etag));
         res.set(CacheControl(vec![CacheDirective::MaxAge(900u32)]));
     }
@@ -168,7 +169,10 @@ async fn main() -> IoResult<()> {
         (@arg PORT: -p --port +takes_value "Sets the port thea starts on"))
     .get_matches();
 
-    setup_logger(matches.is_present("dev"));
+    let is_dev_mode = matches.is_present("dev");
+    let should_cache = !is_dev_mode;
+    env::set_var("THEA_SHOULD_CACHE", should_cache.to_string());
+    setup_logger(is_dev_mode);
 
     // Force the evaluation of CONTENT so the first request after startup isn't delayed.
     let _ = CONTENT.get("/");
