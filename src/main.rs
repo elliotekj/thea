@@ -174,8 +174,8 @@ async fn main() -> IoResult<()> {
     env::set_var("THEA_SHOULD_CACHE", should_cache.to_string());
     setup_logger(is_dev_mode);
 
-    // Force the evaluation of CONTENT so the first request after startup isn't delayed.
-    let _ = CONTENT.get("/");
+    // Force the initialization of CONTENT so the first request after startup isn't delayed.
+    lazy_static::initialize(&CONTENT);
 
     let port = matches.value_of("PORT").unwrap_or("8765");
     let url = format!("127.0.0.1:{}", port);
