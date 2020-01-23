@@ -94,9 +94,27 @@ fn should_cache() -> bool {
 }
 
 pub fn rebuild_site() {
-    let rebuilt_hashmap = content::build_hashmap();
+    let mut new_hashmap = content::build_hashmap();
+
+    {
+        let existing_hashmap = CONTENT.read().unwrap();
+
+        for (slug, page) in &mut new_hashmap {
+            match existing_hashmap.get(slug) {
+                Some(existing_page) => {
+                    if existing_page.rendered == page.rendered {
+                        *page = existing_page.clone();
+                    } else {
+                        info!("Updated page: {}", slug);
+                    }
+                }
+                None => info!("New page: {}", slug),
+            };
+        }
+    }
+
     let mut content_write_lock = CONTENT.write().unwrap();
-    *content_write_lock = rebuilt_hashmap;
+    *content_write_lock = new_hashmap;
 
     info!("Regenerated the HashMap.");
 }
