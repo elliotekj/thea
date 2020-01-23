@@ -1,6 +1,5 @@
-use crate::markdown;
 use crate::models::{ConfigPageType, Page, PageMeta};
-use crate::{CONFIG, TEMPLATES};
+use crate::{markdown, CONFIG};
 use config::Value as ConfigValue;
 use html_minifier::HTMLMinifier;
 use std::collections::HashMap;
@@ -8,7 +7,8 @@ use std::error::Error;
 use std::fs;
 use std::io::{Error as IoError, ErrorKind, Write};
 use std::path::Path;
-use tera::{Context as TeraContext, Map as TeraMap, Value as TeraValue};
+use std::process;
+use tera::{Context as TeraContext, Map as TeraMap, Tera, Value as TeraValue};
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 use yaml_rust::{Yaml, YamlLoader};
@@ -204,6 +204,19 @@ fn dump_frontmatter(frontmatter: Yaml) -> TeraMap<String, TeraValue> {
     map
 }
 
+fn build_templates() -> Tera {
+    let templates_path = CONFIG.get_str("templates.path").unwrap();
+    let templates_glob = format!("{}/**/*", templates_path);
+
+    match Tera::new(&templates_glob) {
+        Ok(t) => t,
+        Err(e) => {
+            error!("Template error(s): {}", e);
+            process::exit(1);
+        }
+    }
+}
+
 fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
     let mut final_hashmap: HashMap<String, Page> = HashMap::new();
 
@@ -213,6 +226,7 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
         .map(|(_, page)| page)
         .collect::<Vec<Page>>();
 
+    let templates = build_templates();
     let mut context = TeraContext::new();
     context.insert("pages", &pages_vec);
     context.insert("globals", &dump_globals());
@@ -222,7 +236,7 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
         let mut page_context = context.clone();
         page_context.insert("page", &page);
 
-        let html = match render_html(&layout, page_context) {
+        let html = match render_html(&layout, &templates, page_context) {
             Ok(html) => html,
             Err(e) => {
                 error!("Failed to render {}: {:?}.", key, e);
@@ -266,10 +280,10 @@ fn dump_globals() -> TeraMap<String, TeraValue> {
     map
 }
 
-fn render_html(layout: &str, context: TeraContext) -> Result<String, IoError> {
+fn render_html(layout: &str, templates: &Tera, context: TeraContext) -> Result<String, IoError> {
     let mut html_minifier = HTMLMinifier::new();
 
-    let html = match TEMPLATES.render(layout, &context) {
+    let html = match templates.render(layout, &context) {
         Ok(html) => html,
         Err(e) => {
             let mut cause = e.source();

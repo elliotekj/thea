@@ -10,6 +10,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 extern crate mime;
+extern crate notify;
 extern crate pulldown_cmark;
 extern crate serde;
 extern crate shellexpand;
@@ -22,6 +23,7 @@ mod codeblocks;
 mod content;
 mod markdown;
 mod models;
+mod watcher;
 
 use crate::models::Page;
 use actix_files::Files as ActixFiles;
@@ -33,15 +35,14 @@ use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServ
 use config::{Config, File as ConfigFile};
 use flexi_logger::{opt_format, Logger as FlexiLogger};
 use std::collections::HashMap;
+use std::env;
 use std::io::Result as IoResult;
 use std::path::Path;
-use std::{env, process};
-use tera::Tera;
+use std::sync::RwLock;
 
 lazy_static! {
     pub static ref CONFIG: Config = build_config();
-    static ref CONTENT: HashMap<String, Page> = content::build_hashmap();
-    pub static ref TEMPLATES: Tera = build_templates();
+    static ref CONTENT: RwLock<HashMap<String, Page>> = RwLock::new(content::build_hashmap());
     static ref SHOULD_CACHE: bool = should_cache();
 }
 
@@ -87,26 +88,23 @@ fn build_config() -> Config {
     config
 }
 
-fn build_templates() -> Tera {
-    let templates_path = CONFIG.get_str("templates.path").unwrap();
-    let templates_glob = format!("{}/**/*", templates_path);
-
-    match Tera::new(&templates_glob) {
-        Ok(t) => t,
-        Err(e) => {
-            error!("Template error(s): {}", e);
-            process::exit(1);
-        }
-    }
-}
-
 fn should_cache() -> bool {
     let thea_cache_str = env::var("THEA_SHOULD_CACHE").unwrap_or("true".into());
     thea_cache_str.parse::<bool>().unwrap_or(true)
 }
 
+pub fn rebuild_site() {
+    let rebuilt_hashmap = content::build_hashmap();
+    let mut content_write_lock = CONTENT.write().unwrap();
+    *content_write_lock = rebuilt_hashmap;
+
+    info!("Regenerated the HashMap.");
+}
+
 async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
-    let page = match CONTENT.get(req.path()) {
+    let content = CONTENT.read().unwrap();
+
+    let page = match content.get(req.path()) {
         Some(page) => page,
         None => return not_found_response().await,
     };
@@ -176,6 +174,8 @@ async fn main() -> IoResult<()> {
 
     // Force the initialization of CONTENT so the first request after startup isn't delayed.
     lazy_static::initialize(&CONTENT);
+
+    watcher::watch_files();
 
     let port = matches.value_of("PORT").unwrap_or("8765");
     let url = format!("127.0.0.1:{}", port);
