@@ -147,10 +147,10 @@ fn parse_file_at(path: &Path, default_layout: String, ttype: String) -> Result<P
         slug: page_slug,
         fm: fm_dump,
         content: parsed_content,
-        rendered: None,
         meta: PageMeta {
-            layout: Some(page_meta_layout),
             etag: Uuid::new_v4().to_string(),
+            layout: Some(page_meta_layout),
+            rendered: None,
         },
     })
 }
@@ -245,7 +245,7 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
         };
 
         let mut final_page = page.clone();
-        final_page.rendered = Some(html);
+        final_page.meta.rendered = Some(html);
         final_hashmap.insert(key.to_string(), final_page);
     }
 
@@ -332,7 +332,7 @@ fn write_rendered_to_disk(hashmap: &HashMap<String, Page>) {
         let _ = fs::create_dir_all(parent_dirs);
 
         let mut file = fs::File::create(page_path).unwrap();
-        let file_contents = page.rendered.clone().unwrap();
+        let file_contents = page.meta.rendered.clone().unwrap();
         let _ = file.write_all(file_contents.as_bytes());
     }
 }

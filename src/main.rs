@@ -102,7 +102,7 @@ pub fn rebuild_site() {
         for (slug, page) in &mut new_hashmap {
             match existing_hashmap.get(slug) {
                 Some(existing_page) => {
-                    if existing_page.rendered == page.rendered {
+                    if existing_page.meta.rendered == page.meta.rendered {
                         *page = existing_page.clone();
                     } else {
                         info!("Updated page: {}", slug);
@@ -132,7 +132,7 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
         return Ok(HttpResponse::NotModified().finish());
     }
 
-    let html = page.rendered.clone().unwrap();
+    let html = page.meta.rendered.clone().unwrap();
     let mut res = HttpResponse::build(StatusCode::OK);
     let slug_parts = page.slug.split(".").collect::<Vec<&str>>();
 
