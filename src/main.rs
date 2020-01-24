@@ -63,7 +63,9 @@ fn setup_logger(is_in_dev_mode: bool) {
 fn build_config() -> Config {
     let mut config = Config::default();
     config.set_default("content.path", "content").unwrap();
-    config.set_default("content.syntax_theme", "InspiredGitHub").unwrap();
+    config
+        .set_default("content.syntax_theme", "InspiredGitHub")
+        .unwrap();
     config.set_default("templates.path", "templates").unwrap();
     config.set_default("write_to_disk", false).unwrap();
     config.merge(ConfigFile::with_name("Config")).unwrap();
@@ -75,7 +77,8 @@ fn build_config() -> Config {
         let path_str = config.get_str(path_field).unwrap();
         let mut path_buf = pwd.clone();
         path_buf.push(path_str);
-        config.set(path_field, path_buf.as_path().to_str().unwrap()).unwrap();
+        let path_buf_string = path_buf.as_path().to_str().unwrap();
+        config.set(path_field, path_buf_string).unwrap();
     }
 
     config
