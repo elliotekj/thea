@@ -13,7 +13,6 @@ extern crate mime;
 extern crate notify;
 extern crate pulldown_cmark;
 extern crate serde;
-extern crate shellexpand;
 extern crate syntect;
 extern crate tera;
 extern crate walkdir;
@@ -37,7 +36,6 @@ use flexi_logger::{opt_format, Logger as FlexiLogger};
 use std::collections::HashMap;
 use std::env;
 use std::io::Result as IoResult;
-use std::path::Path;
 use std::sync::RwLock;
 
 lazy_static! {
@@ -69,20 +67,14 @@ fn build_config() -> Config {
     config.set_default("write_to_disk", false).unwrap();
     config.merge(ConfigFile::with_name("Config")).unwrap();
 
-    let mut base_path_str = config.get_str("base_path").unwrap();
-
-    if base_path_str.starts_with("~") {
-        base_path_str = shellexpand::tilde(&base_path_str).to_string();
-    }
-
-    let base_path = Path::new(&base_path_str);
+    let pwd = env::current_dir().unwrap();
     let path_fields = ["content.path", "templates.path"];
 
-    for c in &path_fields {
-        let path_str = config.get_str(c).unwrap();
-        let path = base_path.join(path_str);
-        let absolute_path_str = path.to_str().unwrap();
-        config.set(c, absolute_path_str).unwrap();
+    for path_field in &path_fields {
+        let path_str = config.get_str(path_field).unwrap();
+        let mut path_buf = pwd.clone();
+        path_buf.push(path_str);
+        config.set(path_field, path_buf.as_path().to_str().unwrap()).unwrap();
     }
 
     config

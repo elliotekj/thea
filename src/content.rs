@@ -4,10 +4,10 @@ use config::Value as ConfigValue;
 use html_minifier::HTMLMinifier;
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs;
 use std::io::{Error as IoError, ErrorKind, Write};
 use std::path::Path;
 use std::process;
+use std::{env, fs};
 use tera::{Context as TeraContext, Map as TeraMap, Tera, Value as TeraValue};
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
@@ -306,14 +306,9 @@ fn render_html(layout: &str, templates: &Tera, context: TeraContext) -> Result<S
 }
 
 fn write_rendered_to_disk(hashmap: &HashMap<String, Page>) {
-    let mut base_path_str = CONFIG.get_str("base_path").unwrap();
+    let mut rendered_path = env::current_dir().unwrap();
+    rendered_path.push(".rendered");
 
-    if base_path_str.starts_with("~") {
-        base_path_str = shellexpand::tilde(&base_path_str).to_string();
-    }
-
-    let base_path = Path::new(&base_path_str);
-    let rendered_path = base_path.join(".rendered");
     let _ = fs::remove_dir_all(&rendered_path);
     let _ = fs::create_dir(&rendered_path);
 
