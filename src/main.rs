@@ -24,6 +24,7 @@ mod markdown;
 mod models;
 mod watcher;
 
+use crate::content::FileType;
 use crate::models::Page;
 use actix_files::Files as ActixFiles;
 use actix_web::http::header::{CacheControl, CacheDirective, ContentType};
@@ -126,19 +127,15 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
 
     let html = page.meta.rendered.clone().unwrap();
     let mut res = HttpResponse::build(StatusCode::OK);
-    let slug_parts = page.slug.split(".").collect::<Vec<&str>>();
 
-    if (slug_parts.len() > 1) && slug_parts.last().is_some() {
-        match slug_parts.last().unwrap() {
-            &"css" => res.set(ContentType(mime::TEXT_CSS_UTF_8)),
-            &"js" => res.set(ContentType(mime::APPLICATION_JAVASCRIPT_UTF_8)),
-            &"json" => res.set(ContentType::json()),
-            &"xml" => res.set(ContentType(mime::TEXT_XML)),
-            _ => res.set(ContentType::plaintext()),
-        };
-    } else {
-        res.set(ContentType::html());
-    }
+    match content::get_filetype(&page.slug) {
+        FileType::Html => res.set(ContentType::html()),
+        FileType::Css => res.set(ContentType(mime::TEXT_CSS_UTF_8)),
+        FileType::Js => res.set(ContentType(mime::APPLICATION_JAVASCRIPT_UTF_8)),
+        FileType::Json => res.set(ContentType::json()),
+        FileType::Xml => res.set(ContentType(mime::TEXT_XML)),
+        FileType::Txt => res.set(ContentType::plaintext()),
+    };
 
     if *SHOULD_CACHE {
         res.set(ETag(page_etag));
