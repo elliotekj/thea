@@ -22,7 +22,22 @@ fn default() -> Config {
 }
 
 fn merge_files(config: &mut Config) {
-    config.merge(ConfigFile::with_name("Config")).unwrap();
+    let default_config = ConfigFile::with_name("./config/default").required(true);
+    config.merge(default_config).unwrap();
+
+    let mode = env::var("THEA_ENV").unwrap_or("development".into());
+
+    match mode.as_ref() {
+        "development" => {
+            let c = ConfigFile::with_name("./config/development").required(false);
+            config.merge(c).unwrap();
+        }
+        "production" => {
+            let c = ConfigFile::with_name("./config/production").required(false);
+            config.merge(c).unwrap();
+        }
+        _ => warn!("default/development/production are the only valid config file names."),
+    };
 }
 
 fn expand_paths(config: &mut Config) {
