@@ -13,6 +13,15 @@ use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 use yaml_rust::{Yaml, YamlLoader};
 
+pub enum FileType {
+    Html,
+    Xml,
+    Css,
+    Js,
+    Json,
+    Txt,
+}
+
 trait IntoPageType {
     fn into_page_type(&self) -> Option<ConfigPageType>;
 }
@@ -101,6 +110,22 @@ impl IntoPageType for ConfigValue {
             path: path,
             default_layout: default_layout,
         })
+    }
+}
+
+pub fn get_filetype(slug: &str) -> FileType {
+    let slug_parts = slug.split(".").collect::<Vec<&str>>();
+
+    if (slug_parts.len() > 1) && slug_parts.last().is_some() {
+        match slug_parts.last().unwrap() {
+            &"css" => FileType::Css,
+            &"js" => FileType::Js,
+            &"json" => FileType::Json,
+            &"xml" => FileType::Xml,
+            _ => FileType::Txt,
+        }
+    } else {
+        FileType::Html
     }
 }
 
@@ -232,12 +257,8 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
     context.insert("globals", &dump_globals());
 
     for (key, page) in hashmap.into_iter() {
-        let layout = page.meta.layout.clone().unwrap();
-        let mut page_context = context.clone();
-        page_context.insert("page", &page);
-
-        let html = match render_html(&layout, &templates, page_context) {
-            Ok(html) => html,
+        let rendered = match render_page(page.clone(), &templates, context.clone()) {
+            Ok(rendered) => rendered,
             Err(e) => {
                 error!("Failed to render {}: {:?}.", key, e);
                 continue;
@@ -245,7 +266,7 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
         };
 
         let mut final_page = page.clone();
-        final_page.meta.rendered = Some(html);
+        final_page.meta.rendered = Some(rendered);
         final_hashmap.insert(key.to_string(), final_page);
     }
 
@@ -280,11 +301,11 @@ fn dump_globals() -> TeraMap<String, TeraValue> {
     map
 }
 
-fn render_html(layout: &str, templates: &Tera, context: TeraContext) -> Result<String, IoError> {
-    let mut html_minifier = HTMLMinifier::new();
+fn render_page(page: Page, templates: &Tera, mut context: TeraContext) -> Result<String, IoError> {
+    context.insert("page", &page);
 
-    let html = match templates.render(layout, &context) {
-        Ok(html) => html,
+    let mut rendered = match templates.render(&page.meta.layout.unwrap(), &context) {
+        Ok(rendered) => rendered,
         Err(e) => {
             let mut cause = e.source();
 
@@ -297,12 +318,20 @@ fn render_html(layout: &str, templates: &Tera, context: TeraContext) -> Result<S
         }
     };
 
-    match html_minifier.digest(html) {
-        Ok(()) => (),
-        Err(e) => return Err(IoError::new(ErrorKind::Other, e.to_string())),
-    };
+    match get_filetype(&page.slug) {
+        FileType::Html | FileType::Xml | FileType::Json | FileType::Js | FileType::Css => {
+            let mut minifier = HTMLMinifier::new();
 
-    Ok(html_minifier.get_html())
+            if let Err(e) = minifier.digest(rendered) {
+                return Err(IoError::new(ErrorKind::Other, e.to_string()));
+            };
+
+            rendered = minifier.get_html();
+        }
+        _ => {}
+    }
+
+    Ok(rendered)
 }
 
 fn write_rendered_to_disk(hashmap: &HashMap<String, Page>) {
