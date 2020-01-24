@@ -26,11 +26,14 @@ mime = "0.3.16"
 notify = "4.0.15"
 pulldown-cmark = "0.6.1"
 serde = "1.0.104"
-syntect = "3.3.0"
 tera = "1.0.1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 walkdir = "2.2.9"
 yaml-rust = "0.4.3"
+
+# Pin syntect version that doesn't require clang.
+# Track https://github.com/rust-onig/rust-onig/pull/126
+syntect = "=3.2.0"
 
 [[bin]]
 name = "thea"
