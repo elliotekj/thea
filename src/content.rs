@@ -1,5 +1,5 @@
 use crate::models::{ConfigPageType, Page, PageMeta};
-use crate::{markdown, CONFIG};
+use crate::{markdown, SETTINGS};
 use config::Value as ConfigValue;
 use html_minifier::HTMLMinifier;
 use std::collections::HashMap;
@@ -28,7 +28,7 @@ trait IntoPageType {
 
 pub fn build_hashmap() -> HashMap<String, Page> {
     let mut hashmap = HashMap::new();
-    let base_content_path = CONFIG.get_str("content.path").unwrap();
+    let base_content_path = SETTINGS.get_str("content.path").unwrap();
     let page_types = get_page_types();
 
     for pt in &page_types {
@@ -60,10 +60,12 @@ pub fn build_hashmap() -> HashMap<String, Page> {
 }
 
 fn get_page_types() -> Vec<ConfigPageType> {
-    let config_page_types = CONFIG.get_array("content.page_types").unwrap_or_else(|_| {
-        error!("Failed while collecting content.page_types.");
-        Vec::with_capacity(0)
-    });
+    let config_page_types = SETTINGS
+        .get_array("content.page_types")
+        .unwrap_or_else(|_| {
+            error!("Failed while collecting content.page_types.");
+            Vec::with_capacity(0)
+        });
 
     let mut page_types = Vec::with_capacity(config_page_types.len());
 
@@ -230,7 +232,7 @@ fn dump_frontmatter(frontmatter: Yaml) -> TeraMap<String, TeraValue> {
 }
 
 fn build_templates() -> Tera {
-    let templates_path = CONFIG.get_str("templates.path").unwrap();
+    let templates_path = SETTINGS.get_str("templates.path").unwrap();
     let templates_glob = format!("{}/**/*", templates_path);
 
     match Tera::new(&templates_glob) {
@@ -270,7 +272,7 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
         final_hashmap.insert(key.to_string(), final_page);
     }
 
-    let should_write_to_disk = CONFIG.get_bool("write_to_disk").unwrap();
+    let should_write_to_disk = SETTINGS.get_bool("write_to_disk").unwrap();
 
     if should_write_to_disk {
         write_rendered_to_disk(&final_hashmap);
@@ -282,7 +284,7 @@ fn render_pages(hashmap: HashMap<String, Page>) -> HashMap<String, Page> {
 fn dump_globals() -> TeraMap<String, TeraValue> {
     let mut map = TeraMap::new();
 
-    let globals_hashmap = match CONFIG.get_table("templates.globals") {
+    let globals_hashmap = match SETTINGS.get_table("templates.globals") {
         Ok(gh) => gh,
         Err(_) => return map,
     };

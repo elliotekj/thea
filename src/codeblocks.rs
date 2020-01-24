@@ -1,4 +1,4 @@
-use crate::CONFIG;
+use crate::SETTINGS;
 use pulldown_cmark::CowStr;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
@@ -49,7 +49,7 @@ pub fn parse_codeblock_open<'a>(info: CowStr<'a>) -> CodeBlockOpen {
 }
 
 pub fn get_highlighter<'a>(codeblock: &CodeBlockOpen) -> HighlightLines<'a> {
-    let config_theme = CONFIG.get_str("content.syntax_theme").unwrap();
+    let config_theme = SETTINGS.get_str("content.syntax_theme").unwrap();
     let theme = &THEME_SET.themes[&config_theme];
 
     match codeblock.lang {

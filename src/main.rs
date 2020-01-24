@@ -22,6 +22,7 @@ mod codeblocks;
 mod content;
 mod markdown;
 mod models;
+mod settings;
 mod watcher;
 
 use crate::content::FileType;
@@ -32,7 +33,7 @@ use actix_web::http::header::{ETag, EntityTag, IF_NONE_MATCH, LOCATION};
 use actix_web::http::StatusCode;
 use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
-use config::{Config, File as ConfigFile};
+use config::Config;
 use flexi_logger::{opt_format, Logger as FlexiLogger};
 use std::collections::HashMap;
 use std::env;
@@ -40,7 +41,7 @@ use std::io::Result as IoResult;
 use std::sync::RwLock;
 
 lazy_static! {
-    pub static ref CONFIG: Config = build_config();
+    pub static ref SETTINGS: Config = settings::new();
     static ref CONTENT: RwLock<HashMap<String, Page>> = RwLock::new(content::build_hashmap());
     static ref SHOULD_CACHE: bool = should_cache();
 }
@@ -58,30 +59,6 @@ fn setup_logger(is_in_dev_mode: bool) {
             .start()
             .unwrap();
     }
-}
-
-fn build_config() -> Config {
-    let mut config = Config::default();
-    config.set_default("content.path", "content").unwrap();
-    config
-        .set_default("content.syntax_theme", "InspiredGitHub")
-        .unwrap();
-    config.set_default("templates.path", "templates").unwrap();
-    config.set_default("write_to_disk", false).unwrap();
-    config.merge(ConfigFile::with_name("Config")).unwrap();
-
-    let pwd = env::current_dir().unwrap();
-    let path_fields = ["content.path", "templates.path"];
-
-    for path_field in &path_fields {
-        let path_str = config.get_str(path_field).unwrap();
-        let mut path_buf = pwd.clone();
-        path_buf.push(path_str);
-        let path_buf_string = path_buf.as_path().to_str().unwrap();
-        config.set(path_field, path_buf_string).unwrap();
-    }
-
-    config
 }
 
 fn should_cache() -> bool {

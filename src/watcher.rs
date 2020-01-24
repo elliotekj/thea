@@ -1,4 +1,4 @@
-use crate::{rebuild_site, CONFIG};
+use crate::{rebuild_site, SETTINGS};
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use std::sync::mpsc::channel;
 use std::thread;
@@ -8,8 +8,8 @@ pub fn watch_files() {
     thread::spawn(move || {
         let (tx, rx) = channel();
         let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-        let content_path = CONFIG.get_str("content.path").unwrap();
-        let templates_path = CONFIG.get_str("templates.path").unwrap();
+        let content_path = SETTINGS.get_str("content.path").unwrap();
+        let templates_path = SETTINGS.get_str("templates.path").unwrap();
 
         let _ = watcher
             .watch(content_path, RecursiveMode::Recursive)
