@@ -1,9 +1,15 @@
 [package]
 name = "thea"
-version = "1.0.0-beta.001"
-description = "Thea is an in-memory website generator and server."
+version = "0.1.0"
+description = "Thea is an from-memory website generator and server."
 authors = ["Elliot Jackson <elliot@elliotekj.com>"]
 edition = "2018"
+homepage = "https://github.com/elliotekj/thea"
+repository = "https://github.com/elliotekj/thea"
+documentation = "https://elliotekj.com/docs/thea"
+readme = "README.md"
+categories = ["command-line-utilities"]
+keywords = ["site", "generator", "blog", "markdown"]
 license = "MIT"
 
 [dependencies]
@@ -25,3 +31,9 @@ tera = "1.0.1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 walkdir = "2.2.9"
 yaml-rust = "0.4.3"
+
+[[bin]]
+name = "thea"
+
+[profile.release]
+lto = true
