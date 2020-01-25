@@ -3,7 +3,7 @@ extern crate actix_web;
 #[macro_use]
 extern crate clap;
 extern crate config;
-extern crate flexi_logger;
+extern crate env_logger;
 extern crate html_minifier;
 #[macro_use]
 extern crate lazy_static;
@@ -34,7 +34,6 @@ use actix_web::http::StatusCode;
 use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use config::Config;
-use flexi_logger::{opt_format, Logger as FlexiLogger};
 use std::collections::HashMap;
 use std::env;
 use std::io::Result as IoResult;
@@ -44,21 +43,6 @@ lazy_static! {
     pub static ref SETTINGS: Config = settings::new();
     static ref CONTENT: RwLock<HashMap<String, Page>> = RwLock::new(content::build_hashmap());
     static ref SHOULD_CACHE: bool = should_cache();
-}
-
-fn setup_logger(is_in_dev_mode: bool) {
-    let logger = FlexiLogger::with_env_or_str("info");
-
-    if is_in_dev_mode {
-        logger.start().unwrap();
-    } else {
-        logger
-            .log_to_file()
-            .directory("logs")
-            .format(opt_format)
-            .start()
-            .unwrap();
-    }
 }
 
 fn should_cache() -> bool {
@@ -154,10 +138,12 @@ async fn main() -> IoResult<()> {
         (@arg PORT: -p --port +takes_value "Sets the port thea starts on"))
     .get_matches();
 
+    env::set_var("RUST_LOG", "info");
+    env_logger::init();
+
     let is_dev_mode = matches.is_present("dev");
     let should_cache = !is_dev_mode;
     env::set_var("THEA_SHOULD_CACHE", should_cache.to_string());
-    setup_logger(is_dev_mode);
 
     // Force the initialization of CONTENT so the first request after startup isn't delayed.
     lazy_static::initialize(&CONTENT);
