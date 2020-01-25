@@ -1,6 +1,6 @@
 [package]
 name = "thea"
-version = "0.1.0"
+version = "0.1.1"
 description = "Thea is an from-memory website generator and server."
 authors = ["Elliot Jackson <elliot@elliotekj.com>"]
 edition = "2018"
