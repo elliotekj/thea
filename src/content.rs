@@ -123,6 +123,7 @@ pub fn get_filetype(slug: &str) -> FileType {
             &"css" => FileType::Css,
             &"js" => FileType::Js,
             &"json" => FileType::Json,
+            &"html" => FileType::Html,
             &"xml" => FileType::Xml,
             _ => FileType::Txt,
         }
