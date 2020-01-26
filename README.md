@@ -7,3 +7,11 @@ Design goals (in order):
 1. Outstanding server to client performance.
 2. Frustration-free setup and configuration.
 3. Powerful, versatile templating.
+
+## Documentation
+
+* [Quickstart](https://elliotekj.com/docs/thea/quickstart)
+* [Install & Update](https://elliotekj.com/docs/thea/install)
+* [In-Depth](https://elliotekj.com/docs/thea/in-depth)
+* [Performance](https://elliotekj.com/docs/thea/performance)
+* [Tips & Tricks](https://elliotekj.com/docs/thea/tips)
