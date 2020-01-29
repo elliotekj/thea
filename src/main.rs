@@ -78,10 +78,11 @@ pub fn rebuild_site() {
 
 async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
     let content = CONTENT.read().unwrap();
+    let slug = normalize_req_path(req.path());
 
-    let page = match content.get(req.path()) {
+    let page = match content.get(&slug) {
         Some(page) => page,
-        None => return unmatched_slug(req.path()).await,
+        None => return unmatched_slug(&slug).await,
     };
 
     let page_etag = EntityTag::strong(page.meta.etag.clone());
@@ -107,6 +108,16 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
     }
 
     Ok(res.body(&html))
+}
+
+fn normalize_req_path(path: &str) -> String {
+    let mut slug = path.to_string();
+
+    if slug.ends_with("/") {
+        let _ = slug.pop();
+    }
+
+    slug
 }
 
 async fn unmatched_slug(slug: &str) -> AppResult<HttpResponse> {
