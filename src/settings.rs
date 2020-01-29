@@ -1,9 +1,11 @@
-use config::{Config, File as ConfigFile};
-use std::env;
+use config::{Config, File as ConfigFile, Value as ConfigValue};
+use std::collections::HashMap;
+use std::{env, process};
 
 pub fn new() -> Config {
     let mut config = default();
     merge_files(&mut config);
+    parse_redirects(&mut config);
     expand_paths(&mut config);
     config
 }
@@ -38,6 +40,41 @@ fn merge_files(config: &mut Config) {
         }
         _ => warn!("default/development/production are the only valid config file names."),
     };
+}
+
+fn parse_redirects(config: &mut Config) {
+    let mut redirects_hashmap = HashMap::new();
+
+    if let Ok(redirects) = config.get_array("redirects") {
+        for redirect in redirects.into_iter() {
+            let redirect = redirect.into_table().unwrap();
+            let redirect_from = redirect.get("from").unwrap().to_string();
+            redirects_hashmap.insert(redirect_from, parse_redirect(redirect));
+        }
+    }
+
+    config.set("redirects", redirects_hashmap).unwrap();
+}
+
+fn parse_redirect(redirect: HashMap<String, ConfigValue>) -> HashMap<String, String> {
+    let redirect_type = redirect.get("redirect_type").unwrap().to_string();
+
+    match redirect_type.as_ref() {
+        "permanent" | "temporary" => {}
+        _ => {
+            error!(
+                "Invalid redirect_type '{}'. Valid values: permanent/temporary",
+                redirect_type
+            );
+
+            process::exit(1);
+        }
+    };
+
+    let mut parsed_redirects = HashMap::new();
+    parsed_redirects.insert("redirect_type".to_string(), redirect_type.to_string());
+    parsed_redirects.insert("to".to_string(), redirect.get("to").unwrap().to_string());
+    parsed_redirects
 }
 
 fn expand_paths(config: &mut Config) {

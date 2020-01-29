@@ -33,7 +33,7 @@ use actix_web::http::header::{ETag, EntityTag, IF_NONE_MATCH};
 use actix_web::http::StatusCode;
 use actix_web::Result as AppResult;
 use actix_web::{guard, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
-use config::Config;
+use config::{Config, Value as ConfigValue};
 use std::collections::HashMap;
 use std::env;
 use std::io::Result as IoResult;
@@ -81,7 +81,7 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
 
     let page = match content.get(req.path()) {
         Some(page) => page,
-        None => return not_found_response().await,
+        None => return unmatched_slug(req.path()).await,
     };
 
     let page_etag = EntityTag::strong(page.meta.etag.clone());
@@ -107,6 +107,31 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
     }
 
     Ok(res.body(&html))
+}
+
+async fn unmatched_slug(slug: &str) -> AppResult<HttpResponse> {
+    let redirects = SETTINGS.get_table("redirects").unwrap();
+
+    if let Some(redirect) = redirects.get(slug) {
+        return redirect_request(redirect.clone()).await;
+    }
+
+    not_found_response().await
+}
+
+async fn redirect_request(redirect: ConfigValue) -> AppResult<HttpResponse> {
+    let redirect_hashmap = redirect.into_table().unwrap();
+    let redirect_type = redirect_hashmap.get("redirect_type").unwrap().to_string();
+    let redirect_location = redirect_hashmap.get("to").unwrap().to_string();
+
+    let mut res = match redirect_type.as_ref() {
+        "permanent" => HttpResponse::PermanentRedirect(),
+        "temporary" => HttpResponse::TemporaryRedirect(),
+        _ => unreachable!(),
+    };
+
+    res.set_header("Location", redirect_location);
+    Ok(res.finish())
 }
 
 async fn not_found_response() -> AppResult<HttpResponse> {
