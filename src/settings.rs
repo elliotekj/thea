@@ -57,13 +57,13 @@ fn parse_redirects(config: &mut Config) {
 }
 
 fn parse_redirect(redirect: HashMap<String, ConfigValue>) -> HashMap<String, String> {
-    let redirect_type = redirect.get("redirect_type").unwrap().to_string();
+    let redirect_type = redirect.get("type").unwrap().to_string();
 
     match redirect_type.as_ref() {
         "permanent" | "temporary" => {}
         _ => {
             error!(
-                "Invalid redirect_type '{}'. Valid values: permanent/temporary",
+                "Invalid redirect type '{}'. Valid values: permanent/temporary",
                 redirect_type
             );
 
@@ -72,7 +72,7 @@ fn parse_redirect(redirect: HashMap<String, ConfigValue>) -> HashMap<String, Str
     };
 
     let mut parsed_redirects = HashMap::new();
-    parsed_redirects.insert("redirect_type".to_string(), redirect_type.to_string());
+    parsed_redirects.insert("type".to_string(), redirect_type.to_string());
     parsed_redirects.insert("to".to_string(), redirect.get("to").unwrap().to_string());
     parsed_redirects
 }

@@ -132,7 +132,7 @@ async fn unmatched_slug(slug: &str) -> AppResult<HttpResponse> {
 
 async fn redirect_request(redirect: ConfigValue) -> AppResult<HttpResponse> {
     let redirect_hashmap = redirect.into_table().unwrap();
-    let redirect_type = redirect_hashmap.get("redirect_type").unwrap().to_string();
+    let redirect_type = redirect_hashmap.get("type").unwrap().to_string();
     let redirect_location = redirect_hashmap.get("to").unwrap().to_string();
 
     let mut res = match redirect_type.as_ref() {

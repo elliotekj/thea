@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.4] - 2020-01-29
+
+### Changed
+- Rename `redirect_type` config key to `type`.
+
 ## [0.1.3] - 2020-01-29
 
 ### Added
