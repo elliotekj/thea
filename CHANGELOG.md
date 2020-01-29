@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.5] - 2020-01-29
+
+### Changed
+- Fixed slug normalization bug
+
 ## [0.1.4] - 2020-01-29
 
 ### Changed
