@@ -113,7 +113,7 @@ async fn catchall(req: HttpRequest) -> AppResult<HttpResponse> {
 fn normalize_req_path(path: &str) -> String {
     let mut slug = path.to_string();
 
-    if slug.ends_with("/") {
+    if slug.len() > 1 && slug.ends_with("/") {
         let _ = slug.pop();
     }
 
